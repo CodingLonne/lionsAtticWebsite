@@ -11,6 +11,7 @@ $data = get_request_data();
 if ($method === 'POST') {
     $username = trim($data['username'] ?? '');
     $password = $data['password'] ?? '';
+    $hash = password_hash($password, "2y");
 
     //connect to database
     $conn = database_connect();
@@ -29,9 +30,6 @@ if ($method === 'POST') {
         echo json_encode(['status' => 'error', 'message' => 'Username already taken']);
         exit;
     }
-
-    // Hash password
-    $hash = password_hash($password, PASSWORD_DEFAULT);
 
     $insertResult = execute_cud_query($conn, 'INSERT INTO gebruikers (gebruikers_naam, wachtwoord_hash) VALUES (?, ?)', [$username, $hash]);
 
