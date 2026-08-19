@@ -12,7 +12,10 @@ request
     loc_x:          int
     loc_y:          int
     doos_id:        uuid
-    has_foto:           boolean!
+    met_foto:       boolean!
+    labels:         [uuid!]
+    eigenaren:      [uuid!]
+    eigendomstype:  string
 }
 response
 {
@@ -26,24 +29,9 @@ include "api-helper.php";
 $method = get_method();
 $data = get_request_data();
 
-if ($method === 'GET') {
+if ($method === 'POST') {
+    $conn = database_connect();
 
-	// You'd normally do stuff here...
-	// Let's just send back a success message
-
-    $config = require '/home/lionsatm/config/db-config.php';
-    $conn = new mysqli($config['host'], $config['user'], $config['pass'], $config['dbname']);
-    // Check connection
-    if ($conn->connect_error) {
-        send_response([
-            'status' => 'failed',
-            'message' => 'connection to database failed',
-        ], 500);
-        die("Connection failed: " . $conn->connect_error);
-    }
-
-    // $sql = "INSERT INTO MyGuests (firstname, lastname, email)
-    // VALUES ('John', 'Doe', 'john@example.com')";
     $sql = "INSERT INTO `huishoudens`(`naam`, `omschrijving`, `foto`) 
     VALUES ('Villa kakelbond','Het huis van pipi langkous','path/to/nowhere.jpg')";
 
