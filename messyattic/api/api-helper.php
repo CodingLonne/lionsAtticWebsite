@@ -149,4 +149,40 @@ function execute_cud_query(mysqli $conn, string $sql, array $params = []): array
     }
 }
 
+function select_query(mysqli $conn, string $sql, array $params = []): array {
+    $selectResult = execute_read_query($conn, $sql, $params);
+    if (!$selectResult['successful']) {
+        send_response([
+            'message' => 'Error while executing query',
+            'extra_info' => $selectResult
+        ], 500);
+        exit;
+    }
+    return $selectResult;
+}
+
+function select_query_expect_result(mysqli $conn, string $sql, array $params = [], 
+                                    string $emptyResultMessage = "Select query returned unexpected empty result from database", int $emptyResultCode = 400): array {
+    $selectResult = select_query($conn, $sql, $params);
+    if (empty($found_users['rows'])) {
+        send_response([
+            'message' => $emptyResultMessage,
+        ], $emptyResultCode);
+    }
+    return $selectResult;
+}
+
+function insert_query(mysqli $conn, string $sql, array $params = [], string $errMsg = "Insert query did not insert any new rows in database"): array {
+    $insertResult = execute_cud_query($conn, $sql, $params);
+    if (!$insertResult['successful'] || $insertResult['affected_rows'] <= 0) {
+        send_response([
+            'status' => 'failed',
+            'message' => $errMsg,
+            'extra_info' => $insertResult
+        ], 500);
+        exit;
+    }
+    return $insertResult;
+}
+
 ?>

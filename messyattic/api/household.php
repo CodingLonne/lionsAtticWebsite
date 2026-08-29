@@ -9,6 +9,8 @@ $method = get_method();
 $data = get_request_data();
 
 include("authenticate.php");
+/** @var mixed  $userId */
+/** @var mysqli $conn   */
 
 
 if ($method == "GET") {
@@ -32,7 +34,7 @@ request
 {
     name:           string!
     description:    string!
-    with_photo:     boolean!
+    with_image:     boolean!
 }
 response
 {
@@ -43,9 +45,11 @@ response
 // get data
 $household_name        = $data["name"];
 $household_description = $data["description"];
-$with_photo            = array_key_exists("with_photo", $data) ? $data["with_photo"] : false;
+$with_image            = array_key_exists("with_image", $data) ? $data["with_image"] : false;
 
 $huishoudenId = generate_uuid_v4();
+// give household own image folder
+mkdir("/home/lionsatm/images/" . $huishoudenId, 0755);
 
 // make household
 $insertHuishoudenResult = execute_cud_query($conn, 'INSERT INTO huishoudens (id, naam, omschrijving) VALUES (?, ?, ?)', [$huishoudenId, $household_name, $household_description]);
@@ -72,12 +76,12 @@ $response = [
     'status' => 'success',
     'message' => 'Huishouden created'
 ];
-if ($with_photo) {
+if ($with_image) {
     $uploadToken = bin2hex(openssl_random_pseudo_bytes(8));
     $expiresAt = (new DateTime('+5 minutes'))->format('Y-m-d H:i:s');
     $insertPhotoToken = execute_cud_query($conn, 'INSERT INTO upload_tokens (token, verloopt_op, huishouden_id) VALUES (?, ?, ?)', [$uploadToken, $expiresAt, $huishoudenId]);
     if ($insertPhotoToken['successful'] && $insertPhotoToken['affected_rows']>0) {
-        $response['upload_url'] = "https://lions-attic.nl/messyattic/api/upload/image/" . $uploadToken;
+        $response['upload_url'] = "https://lions-attic.nl/messyattic/api/image/" . $uploadToken;
     }
 }
 send_response($response, 201);
