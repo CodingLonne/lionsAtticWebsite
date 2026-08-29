@@ -22,10 +22,28 @@ request
 }
 response
 {
-    
+    name:           string!
+    description:    string!
+    image:          url
+    members:        [id!]!
+    rooms:          [id!]!
+    items:          [id!]!
+    tags:           [id!]!
 }
 */
 $household_id = $data["id"];
+//TODO is household id from user
+confirm_access_to_household($conn, $userId, $household_id);
+
+$household_result = select_query_expect_result($conn, "SELECT naam, omschrijving, foto FROM `huishoudens` WHERE id = ?", [$household_id], 
+                                                "No household with matching id found", 400);
+$response = [
+    'name' => $household_result['rows'][0]['naam'],
+    'description' => $household_result['rows'][0]['omschrijving'],
+    'image' => $household_result['rows'][0]['foto']
+];
+send_response($response, $code=200);
+exit;
 
 } else if ($method == "POST") {
 /* 
@@ -50,6 +68,8 @@ $with_image            = array_key_exists("with_image", $data) ? $data["with_ima
 $huishoudenId = generate_uuid_v4();
 // give household own image folder
 mkdir("/home/lionsatm/images/" . $huishoudenId, 0755);
+mkdir("/home/lionsatm/images/" . $huishoudenId . "/rooms", 0755);
+mkdir("/home/lionsatm/images/" . $huishoudenId . "/items", 0755);
 
 // make household
 $insertHuishoudenResult = execute_cud_query($conn, 'INSERT INTO huishoudens (id, naam, omschrijving) VALUES (?, ?, ?)', [$huishoudenId, $household_name, $household_description]);
@@ -74,7 +94,8 @@ if (!$insertEigenaarResult['successful'] || $insertEigenaarResult['affected_rows
 // potentially set up photo upload url
 $response = [
     'status' => 'success',
-    'message' => 'Huishouden created'
+    'message' => 'Huishouden created',
+    'id' => $huishoudenId
 ];
 if ($with_image) {
     $uploadToken = bin2hex(openssl_random_pseudo_bytes(8));

@@ -40,4 +40,11 @@ if (empty($token_search_result['rows'])) {
 
 $userId = $token_search_result['rows'][0]['gebruiker_id'];
 
+function confirm_access_to_household(mysqli $conn, string $userId, string $householdId){
+    $result = select_query_expect_result(
+        $conn, 'SELECT * FROM `huishoud_leden_rel` WHERE gebruiker_id = ? AND huishouden_id = ?', [$userId, $householdId],
+        "You do not have access to this household", 400);
+}
+
+
 ?>
