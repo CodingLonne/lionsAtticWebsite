@@ -40,8 +40,33 @@ $household_result = select_query_expect_result($conn, "SELECT naam, omschrijving
 $response = [
     'name' => $household_result['rows'][0]['naam'],
     'description' => $household_result['rows'][0]['omschrijving'],
-    'image' => $household_result['rows'][0]['foto']
+    'image' => $household_result['rows'][0]['foto'],
+    'members' => [],
+    'rooms' => [],
+    'items' => [],
+    'tags' => [],
 ];
+// check members
+$members_result = select_query($conn, "SELECT gebruiker_id FROM `huishoud_leden_rel` WHERE huishouden_id = ?", [$household_id]);
+foreach ($members_result["rows"] as $row) {
+    array_push($response["members"], $row["gebruiker_id"]);
+}
+// list rooms
+$rooms_result = select_query($conn, "SELECT id FROM `kamers` WHERE huishouden_id = ?", [$household_id]);
+foreach ($rooms_result["rows"] as $row) {
+    array_push($response["rooms"], $row["id"]);
+}
+// list items/boxes
+$items_result = select_query($conn, "SELECT id FROM `voorwerpen` WHERE huishouden_id = ?", [$household_id]);
+foreach ($items_result["rows"] as $row) {
+    array_push($response["items"], $row["id"]);
+}
+// list tags
+$tags_result = select_query($conn, "SELECT id FROM `labels` WHERE huishouden_id = ?", [$household_id]);
+foreach ($tags_result["rows"] as $row) {
+    array_push($response["tags"], $row["id"]);
+}
+
 send_response($response, $code=200);
 exit;
 
