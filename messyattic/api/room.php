@@ -47,7 +47,7 @@ response
 }
 */
 $roomName     = $data["name"];
-$withPhoto    = $data["description"];
+$withImage    = $data["with_image"];
 $huishoudenId = $data["huishouden_id"];
 
 $roomId = generate_uuid_v4();
@@ -57,7 +57,7 @@ insert_query($conn, "INSERT INTO kamers(id, naam, huishouden_id) VALUES (?, ?, ?
 $response = [
     'id' => $huishoudenId
 ];
-if ($withPhoto) {
+if ($withImage) {
     $uploadToken = bin2hex(openssl_random_pseudo_bytes(8));
     $expiresAt = (new DateTime('+5 minutes'))->format('Y-m-d H:i:s');
     $insertPhotoToken = execute_cud_query($conn, 'INSERT INTO upload_tokens (token, verloopt_op, kamer_id) VALUES (?, ?, ?)', [$uploadToken, $expiresAt, $roomId]);
