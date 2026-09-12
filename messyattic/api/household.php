@@ -81,7 +81,7 @@ request
 }
 response
 {
-    photo_url:      url
+    image_url:      url
     id:             uuid!
 }
 */
@@ -118,8 +118,6 @@ if (!$insertEigenaarResult['successful'] || $insertEigenaarResult['affected_rows
 }
 // potentially set up photo upload url
 $response = [
-    'status' => 'success',
-    'message' => 'Huishouden created',
     'id' => $huishoudenId
 ];
 if ($with_image) {
@@ -127,7 +125,7 @@ if ($with_image) {
     $expiresAt = (new DateTime('+5 minutes'))->format('Y-m-d H:i:s');
     $insertPhotoToken = execute_cud_query($conn, 'INSERT INTO upload_tokens (token, verloopt_op, huishouden_id) VALUES (?, ?, ?)', [$uploadToken, $expiresAt, $huishoudenId]);
     if ($insertPhotoToken['successful'] && $insertPhotoToken['affected_rows']>0) {
-        $response['upload_url'] = "https://lions-attic.nl/messyattic/api/image/" . $uploadToken;
+        $response['image_url'] = "https://lions-attic.nl/messyattic/api/image/" . $uploadToken;
     }
 }
 send_response($response, 201);
