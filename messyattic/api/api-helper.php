@@ -164,7 +164,7 @@ function select_query(mysqli $conn, string $sql, array $params = []): array {
 function select_query_expect_result(mysqli $conn, string $sql, array $params = [], 
                                     string $emptyResultMessage = "Select query returned unexpected empty result from database", int $emptyResultCode = 400): array {
     $selectResult = select_query($conn, $sql, $params);
-    if (empty($found_users['rows'])) {
+    if (empty($selectResult['rows'])) {
         send_response([
             'message' => $emptyResultMessage,
         ], $emptyResultCode);
