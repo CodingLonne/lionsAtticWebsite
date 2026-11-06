@@ -185,4 +185,19 @@ function insert_query(mysqli $conn, string $sql, array $params = [], string $err
     return $insertResult;
 }
 
+function update_query_expect_result(mysqli $conn, string $sql, array $params = [], string $errMsg = "Update query did not update any rows in database"): array {
+    $updateResult = execute_cud_query($conn, $sql, $params);
+    if (!$updateResult['successful'] || $updateResult['affected_rows'] <= 0) {
+        send_response([
+            'status' => 'failed',
+            'message' => $errMsg,
+            'extra_info' => $updateResult
+        ], 500);
+        exit;
+    }
+    return $updateResult;
+}
+
+
+
 ?>
