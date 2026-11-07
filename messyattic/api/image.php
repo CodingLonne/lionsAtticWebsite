@@ -31,7 +31,7 @@ if (!$image_token) {
 $conn = database_connect();
 
 // process token
-$token_purpose = execute_read_query($conn, 'SELECT huishouden_id, kamer_id, verloopt_op FROM upload_tokens WHERE token = ?', [$image_token]);
+$token_purpose = execute_read_query($conn, 'SELECT huishouden_id, kamer_id, voorwerp_id, verloopt_op FROM upload_tokens WHERE token = ?', [$image_token]);
 if (!$token_purpose['successful']) {
     send_response([
         'status' => 'failed',
@@ -45,10 +45,11 @@ if (!$token_purpose['successful']) {
     ], 500);
     exit;
 }
-$huishoudenId = $token_purpose['rows'][0]['huishouden_id'];
-$kamerId = $token_purpose['rows'][0]['kamer_id']; //TODO continue so that rooms can add images
+$huishoudenId = $token_purpose['rows'][0]['huishouden_id'] ?? null;
+$kamerId = $token_purpose['rows'][0]['kamer_id'] ?? null;
+$voorwerpId = $token_purpose['rows'][0]['voorwerp_id'] ?? null;
 
-if(!is_null($huishoudenId) || !is_null($kamerId)) {
+if(!is_null($huishoudenId) || !is_null($kamerId) || !is_null($voorwerpId)) {
     // get image data and enforce max size
     $imageData = file_get_contents('php://input');
     if (empty($imageData)) {
@@ -68,6 +69,8 @@ if(!is_null($huishoudenId) || !is_null($kamerId)) {
         send_response(['status' => 'error', 'message' => 'Invalid image data'], $code=400);
         exit;
     }
+    $width = $imageInfo[0];
+    $height = $imageInfo[1];
     // Determine extension
     $extension = match ($imageInfo['mime']) {
         'image/jpeg' => 'jpg',
@@ -97,10 +100,12 @@ if (!is_null($huishoudenId)) {
     }
 
     send_response([
-        'image_path' => $image_path
+        'image_path' => $image_path,
+        'width'      => $width,
+        'height'     => $height,
     ], $code=200);
+    }
 
-}
 if (!is_null($kamerId)) {
     // Get huishoudenId of kamer
     $rows = select_query_expect_result($conn, "SELECT huishouden_id FROM kamers WHERE id = ?", [$kamerId]);
@@ -122,6 +127,34 @@ if (!is_null($kamerId)) {
     }
 
     send_response([
-        'image_path' => $image_path
+        'image_path' => $image_path,
+        'width'      => $width,
+        'height'     => $height,
+    ], $code=200);
+    }
+
+if (!is_null($voorwerpId)) {
+    $rows = select_query_expect_result($conn, "SELECT huishouden_id FROM voorwerpen WHERE id = ?", [$voorwerpId]);
+    $huishoudenId = $rows["rows"][0]['huishouden_id'];
+
+    $image_path = '/home/lionsatm/images/' . $huishoudenId . '/items/' . $voorwerpId . '/profile.' . $extension;
+    if (!is_dir(dirname($image_path))) {
+        mkdir(dirname($image_path), 0755, true);
+    }
+    if (!rename($tmpFile, $image_path)) {
+        send_response(['status' => 'error', 'message' => 'Failed to save image'], $code=500);
+        exit;
+    }
+    update_query_expect_result($conn, "UPDATE voorwerpen SET foto = ? WHERE id = ?", [$image_path, $voorwerpId], errMsg: 'Could not assign image to item');
+
+    $removeResult = execute_cud_query($conn, "DELETE FROM upload_tokens WHERE token = ?", [$image_token]);
+    if (!$removeResult["successful"] || $removeResult["affected_rows"] <= 0) {
+        error_log("Expected to remove token, but image token " . $image_token . " was not found");
+    }
+
+    send_response([
+        'image_path' => $image_path,
+        'width'      => $width,
+        'height'     => $height,
     ], $code=200);
 }
