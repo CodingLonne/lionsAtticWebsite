@@ -24,13 +24,35 @@ response
 {
     name:           string!
     huishouden_id:  uuid!
-    image:          url!
-    dim_x:          int!
-    dim_y:          int!
+    image:          url
+    width:          int!
+    height:         int!
     items:          [uuid!]!
 }
 */
 $room_id = $data["id"];
+
+// implementation
+$room_result = select_query_expect_result($conn, "SELECT naam, huishouden_id, foto, breedte, hoogte FROM kamers WHERE id = ?", [$room_id], emptyResultMessage: "Room not found", emptyResultCode: 400);
+$row = $room_result['rows'][0];
+confirm_access_to_household($conn, $userId, $row['huishouden_id']);
+
+$response = [
+    'name'      => $row['naam'],
+    'huishouden_id' => $row['huishouden_id'],
+    'image'     => $row['foto'],
+    'width'     => $row['breedte'],
+    'height'     => $row['hoogte'],
+    'items'     => [],
+];
+
+$items_result = select_query($conn, "SELECT id FROM voorwerpen WHERE kamer_id = ?", [$room_id]);
+foreach ($items_result["rows"] as $r) {
+    $response['items'][] = $r['id'];
+}
+
+send_response($response, 200);
+exit;
 
 } else if ($method == "POST") {
 /*
