@@ -51,7 +51,7 @@ $response = [
     'naam'          => $row['naam'],
     'omschrijving'  => $row['omschrijving'],
     'image'         => $row['foto'],
-    'huishouden_id'    => $row['huishouden_id'],
+    'huishouden_id' => $row['huishouden_id'],
     'kamer_id'      => $row['kamer_id'],
     'loc_x'         => $row['loc_x'],
     'loc_y'         => $row['loc_y'],
@@ -81,7 +81,7 @@ request
 {
     naam:           string!
     omschrijving:   string!
-    huishouden_id:     uuid!
+    huishouden_id:  uuid!
     kamer_id:       uuid
     loc_x:          int
     loc_y:          int
