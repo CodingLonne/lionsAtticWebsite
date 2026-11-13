@@ -46,6 +46,16 @@ function send_response ($response, $code = 200) {
 	die(json_encode($response));
 }
 
+function validate_method(string $desired_method) {
+    if (get_method() != $desired_method) {
+        send_response([
+            'status' => 'failed',
+            'message' => 'Method niet toegestaan',
+        ], $code = 405);
+        exit;
+    }
+}
+
 function generate_uuid_v4(): string {
     $data = random_bytes(16);
     $data[6] = chr((ord($data[6]) & 0x0f) | 0x40); // version 4

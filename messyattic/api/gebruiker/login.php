@@ -3,7 +3,7 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 
-include "api-helper.php";
+include("../api-helper.php");
 
 $method = get_method();
 $data = get_request_data();
@@ -18,6 +18,7 @@ request
 }
 response
 {
+    id:             uuid!
     verloopt_op:    datetime!
     token:          string!
 }
@@ -44,6 +45,7 @@ if (password_verify($password, $database_wachtwoord_hash)) {
     $insertResult = execute_cud_query($conn, 'INSERT INTO auth_tokens (gebruiker_id, token_hash, verloopt_op) VALUES (?, ?, ?)', [$user_id, $hashedToken, $expiresAt]);
     if ($insertResult['successful'] && $insertResult['affected_rows'] > 0) {
         send_response([
+            'id' => $user_id,
             'status' => 'success',
             'token' => $generatedToken,
             'verloopt_op' => $expiresAt,

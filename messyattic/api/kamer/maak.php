@@ -3,60 +3,19 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 
-include "api-helper.php";
+include("../api-helper.php");
 
 $method = get_method();
 $data = get_request_data();
 
-include("authenticate.php");
+include("../gebruiker/authenticate.php");
 /** @var mixed  $userId */
 /** @var mysqli $conn   */
 
 
-if ($method == "GET") {
-/* 
-GET
-request
-{
-    id:             uuid!
-}
-response
-{
-    naam:           string!
-    huishouden_id:  uuid!
-    foto:           url
-    breedte:        int!
-    hoogte:         int!
-    voorwerpen:     [uuid!]!
-}
-*/
-$room_id = $data["id"];
-
-// implementation
-$room_result = select_query_expect_result($conn, "SELECT naam, huishouden_id, foto, breedte, hoogte FROM kamers WHERE id = ?", [$room_id], emptyResultMessage: "Room not found", emptyResultCode: 400);
-$row = $room_result['rows'][0];
-confirm_access_to_household($conn, $userId, $row['huishouden_id']);
-
-$response = [
-    'naam'          => $row['naam'],
-    'huishouden_id' => $row['huishouden_id'],
-    'foto'          => $row['foto'],
-    'breedte'       => $row['breedte'],
-    'hoogte'        => $row['hoogte'],
-    'voorwerpen'    => [],
-];
-
-$items_result = select_query($conn, "SELECT id FROM voorwerpen WHERE kamer_id = ?", [$room_id]);
-foreach ($items_result["rows"] as $r) {
-    $response['voorwerpen'][] = $r['id'];
-}
-
-send_response($response, 200);
-$conn->close();
-exit;
-
-} else if ($method == "POST") {
+validate_method("POST");
 /*
+POST
 request
 {
     naam:           string!
@@ -92,5 +51,4 @@ if ($withImage) {
 }
 send_response($response, 201);
 exit;
-}
 ?>

@@ -3,11 +3,11 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 // setup
-include "api-helper.php";
+include("../api-helper.php");
 
 $method = get_method();
 
-include("authenticate.php");
+include("../gebruiker/authenticate.php");
 /** @var mixed  $userId */
 /** @var mysqli $conn   */
 

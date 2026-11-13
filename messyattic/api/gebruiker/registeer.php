@@ -3,7 +3,7 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 
-include "api-helper.php";
+include("../api-helper.php");
 
 $method = get_method();
 $data = get_request_data();

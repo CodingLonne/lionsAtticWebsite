@@ -3,17 +3,16 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 
-include "api-helper.php";
+include("../api-helper.php");
 
 $method = get_method();
 $data = get_request_data();
 
-include("authenticate.php");
+include("../gebruiker/authenticate.php");
 /** @var mixed  $userId */
 /** @var mysqli $conn   */
 
-
-if ($method == "GET") {
+validate_method("GET");
 /*
 request
 {
@@ -33,9 +32,9 @@ if (empty($user_id)) {
 $user_result = select_query_expect_result($conn, "SELECT gebruikers_naam FROM gebruikers WHERE id = ?", [$user_id], emptyResultMessage: "User not found", emptyResultCode: 400);
 $row = $user_result['rows'][0];
 
-send_response([
+$response = [
     'naam' => $row['gebruikers_naam']
-], 200);
-exit;
+];
 
-}
+send_response($response, 200);
+exit;
