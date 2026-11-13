@@ -22,52 +22,52 @@ request
 }
 response
 {
-    name:           string!
-    description:    string!
-    image:          url
-    members:        [id!]!
-    rooms:          [id!]!
-    items:          [id!]!
-    tags:           [id!]!
+    naam:            string!
+    omschrijving:    string!
+    foto:            url
+    leden:           [id!]!
+    kamers:          [id!]!
+    voorwerpen:      [id!]!
+    labels:          [id!]!
 }
 */
 $household_id = $data["id"];
-//TODO is household id from user
 confirm_access_to_household($conn, $userId, $household_id);
 
 $household_result = select_query_expect_result($conn, "SELECT naam, omschrijving, foto FROM `huishoudens` WHERE id = ?", [$household_id], 
                                                 "No household with matching id found", 400);
 $response = [
-    'name' => $household_result['rows'][0]['naam'],
-    'description' => $household_result['rows'][0]['omschrijving'],
-    'image' => $household_result['rows'][0]['foto'],
-    'members' => [],
-    'rooms' => [],
-    'items' => [],
-    'tags' => [],
+    'naam'         => $household_result['rows'][0]['naam'],
+    'omschrijving' => $household_result['rows'][0]['omschrijving'],
+    'foto'         => $household_result['rows'][0]['foto'],
+    'leden'        => [],
+    'kamers'       => [],
+    'voorwerpen'   => [],
+    'labels'       => [],
 ];
 // check members
 $members_result = select_query($conn, "SELECT gebruiker_id FROM `huishoud_leden_rel` WHERE huishouden_id = ?", [$household_id]);
 foreach ($members_result["rows"] as $row) {
-    array_push($response["members"], $row["gebruiker_id"]);
+    array_push($response["leden"], $row["gebruiker_id"]);
 }
 // list rooms
 $rooms_result = select_query($conn, "SELECT id FROM `kamers` WHERE huishouden_id = ?", [$household_id]);
 foreach ($rooms_result["rows"] as $row) {
-    array_push($response["rooms"], $row["id"]);
+    array_push($response["kamers"], $row["id"]);
 }
 // list items/boxes
 $items_result = select_query($conn, "SELECT id FROM `voorwerpen` WHERE huishouden_id = ?", [$household_id]);
 foreach ($items_result["rows"] as $row) {
-    array_push($response["items"], $row["id"]);
+    array_push($response["voorwerpen"], $row["id"]);
 }
 // list tags
 $tags_result = select_query($conn, "SELECT id FROM `labels` WHERE huishouden_id = ?", [$household_id]);
 foreach ($tags_result["rows"] as $row) {
-    array_push($response["tags"], $row["id"]);
+    array_push($response["labels"], $row["id"]);
 }
 
 send_response($response, $code=200);
+$conn->close();
 exit;
 
 } else if ($method == "POST") {
@@ -75,21 +75,29 @@ exit;
 POST
 request
 {
-    name:           string!
-    description:    string!
-    with_image:     boolean!
+    naam:         string!
+    omschrijving: string!
+    met_foto:     boolean
 }
 response
 {
-    image_url:      url
-    id:             uuid!
+    foto_url:     url
+    id:           uuid!
 }
 */
 // get data
-$household_name        = $data["name"];
-$household_description = $data["description"];
-$with_image            = array_key_exists("with_image", $data) ? $data["with_image"] : false;
+$household_name        = $data["naam"] ?? null;
+$household_description = $data["omschrijving"] ?? '';
+$with_image            = $data["met_foto"] ?? false;
 
+// check that needed data is supplied
+if (empty($household_name)) {
+    send_response(['status' => 'error', 'message' => 'naam nodig'], 400);
+    $conn->close();
+    exit;
+}
+
+// start making household
 $huishoudenId = generate_uuid_v4();
 // give household own image folder
 mkdir("/home/lionsatm/images/" . $huishoudenId, 0755);
@@ -97,25 +105,16 @@ mkdir("/home/lionsatm/images/" . $huishoudenId . "/rooms", 0755);
 mkdir("/home/lionsatm/images/" . $huishoudenId . "/items", 0755);
 
 // make household
-$insertHuishoudenResult = execute_cud_query($conn, 'INSERT INTO huishoudens (id, naam, omschrijving) VALUES (?, ?, ?)', [$huishoudenId, $household_name, $household_description]);
-if (!$insertHuishoudenResult['successful'] || $insertHuishoudenResult['affected_rows'] <= 0) {
-    send_response([
-        'status' => 'failed',
-        'message' => 'Huishouden failed to be made.',
-        'extra_info' => $insertHuishoudenResult
-    ], 500);
-    exit;
-}
+$insertHuishoudenResult = insert_query($conn, 
+    'INSERT INTO huishoudens (id, naam, omschrijving) VALUES (?, ?, ?)', 
+    [$huishoudenId, $household_name, $household_description],
+    errMsg: 'Huishouden maken gefaald');
 // set owner household to maker
-$insertEigenaarResult = execute_cud_query($conn, 'INSERT INTO huishoud_leden_rel (gebruiker_id, huishouden_id) VALUES (?, ?)', [$userId, $huishoudenId]);
-if (!$insertEigenaarResult['successful'] || $insertEigenaarResult['affected_rows'] <= 0) {
-    send_response([
-        'status' => 'failed',
-        'message' => 'Could not add owner to huishouden',
-        'extra_info' => $insertEigenaarResult
-    ], 500);
-    exit;
-}
+$insertEigenaarResult = insert_query($conn, 
+    'INSERT INTO huishoud_leden_rel (gebruiker_id, huishouden_id) VALUES (?, ?)', 
+    [$userId, $huishoudenId],
+    errMsg: 'Kon gebruiker niet toevoegen aan huishouden als (mede)eigenaar');
+
 // potentially set up photo upload url
 $response = [
     'id' => $huishoudenId
@@ -125,10 +124,11 @@ if ($with_image) {
     $expiresAt = (new DateTime('+5 minutes'))->format('Y-m-d H:i:s');
     $insertPhotoToken = execute_cud_query($conn, 'INSERT INTO upload_tokens (token, verloopt_op, huishouden_id) VALUES (?, ?, ?)', [$uploadToken, $expiresAt, $huishoudenId]);
     if ($insertPhotoToken['successful'] && $insertPhotoToken['affected_rows']>0) {
-        $response['image_url'] = "https://lions-attic.nl/messyattic/api/image/" . $uploadToken;
+        $response['foto_url'] = "https://lions-attic.nl/messyattic/api/image/" . $uploadToken;
     }
 }
 send_response($response, 201);
+$conn->close();
 exit;
 }
 ?>

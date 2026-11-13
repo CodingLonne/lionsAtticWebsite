@@ -22,12 +22,12 @@ request
 }
 response
 {
-    name:           string!
+    naam:           string!
     huishouden_id:  uuid!
-    image:          url
-    width:          int!
-    height:         int!
-    items:          [uuid!]!
+    foto:           url
+    breedte:        int!
+    hoogte:         int!
+    voorwerpen:     [uuid!]!
 }
 */
 $room_id = $data["id"];
@@ -38,39 +38,40 @@ $row = $room_result['rows'][0];
 confirm_access_to_household($conn, $userId, $row['huishouden_id']);
 
 $response = [
-    'name'      => $row['naam'],
+    'naam'          => $row['naam'],
     'huishouden_id' => $row['huishouden_id'],
-    'image'     => $row['foto'],
-    'width'     => $row['breedte'],
-    'height'     => $row['hoogte'],
-    'items'     => [],
+    'foto'          => $row['foto'],
+    'breedte'       => $row['breedte'],
+    'hoogte'        => $row['hoogte'],
+    'voorwerpen'    => [],
 ];
 
 $items_result = select_query($conn, "SELECT id FROM voorwerpen WHERE kamer_id = ?", [$room_id]);
 foreach ($items_result["rows"] as $r) {
-    $response['items'][] = $r['id'];
+    $response['voorwerpen'][] = $r['id'];
 }
 
 send_response($response, 200);
+$conn->close();
 exit;
 
 } else if ($method == "POST") {
 /*
 request
 {
-    name:           string!
+    naam:           string!
     huishouden_id:  uuid!
-    with_image:     boolean!
+    met_foto:       boolean!
 }
 response
 {
-    image_url:      url
+    foto_url:       url
     id:             uuid!
 }
 */
-$roomName     = $data["name"];
-$withImage    = $data["with_image"];
-$huishoudenId = $data["huishouden_id"];
+$roomName     = $data["naam"] ?? null;
+$withImage    = $data["met_foto"] ?? false;
+$huishoudenId = $data["huishouden_id"] ?? null;
 
 $roomId = generate_uuid_v4();
 
@@ -86,7 +87,7 @@ if ($withImage) {
     $expiresAt = (new DateTime('+5 minutes'))->format('Y-m-d H:i:s');
     $insertPhotoToken = execute_cud_query($conn, 'INSERT INTO upload_tokens (token, verloopt_op, kamer_id) VALUES (?, ?, ?)', [$uploadToken, $expiresAt, $roomId]);
     if ($insertPhotoToken['successful'] && $insertPhotoToken['affected_rows']>0) {
-        $response['image_url'] = "https://lions-attic.nl/messyattic/api/image/" . $uploadToken;
+        $response['foto_url'] = "https://lions-attic.nl/messyattic/api/image/" . $uploadToken;
     }
 }
 send_response($response, 201);

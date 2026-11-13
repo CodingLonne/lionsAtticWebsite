@@ -71,6 +71,7 @@ foreach ($owners_result["rows"] as $o) {
 }
 
 send_response($response, 200);
+$conn->close();
 exit;
 
 } else if ($method === 'POST') {
@@ -98,30 +99,33 @@ response
 }
 */
 // get data
-$item_name = $data["name"] ?? null;
-$item_description = $data["description"] ?? '';
-$item_householdId = $data["household_id"] ?? null;
-$item_roomId = $data["room_id"] ?? null;
+$item_name = $data["naam"] ?? null;
+$item_description = $data["omschrijving"] ?? '';
+$item_householdId = $data["huishouden_id"] ?? null;
+$item_roomId = $data["kamer_id"] ?? null;
 $item_locX = $data["loc_x"] ?? null;
 $item_locY = $data["loc_y"] ?? null;
-$item_boxId = $data["box_id"] ?? null;
-$item_withPhoto = $data["with_image"] ?? false;
+$item_boxId = $data["doos_id"] ?? null;
+$item_withPhoto = $data["met_foto"] ?? false;
 $item_labels = $data["labels"] ?? [];
-$item_owners = $data["owners"] ?? [];
-$item_ownerType = $data["ownerType"] ?? "iedereen"; //owner type
+$item_owners = $data["eigenaren"] ?? [];
+$item_ownerType = $data["eigendomstype"] ?? "iedereen"; //owner type
 
 // mandatory checks
 if (empty($item_name)) {
-    send_response(['status' => 'error', 'message' => 'name is required'], 400);
+    send_response(['status' => 'error', 'message' => 'naam nodig'], 400);
     exit;
 }
 if (empty($item_householdId)) {
-    send_response(['status' => 'error', 'message' => 'household_id is required'], 400);
+    send_response(['status' => 'error', 'message' => 'huishouden_id nodig'], 400);
     exit;
 }
 
 // verify household exists
-select_query_expect_result($conn, "SELECT id FROM huishoudens WHERE id = ?", [$item_householdId], emptyResultMessage: "Household not found", emptyResultCode: 400);
+select_query_expect_result($conn, 
+    "SELECT id FROM huishoudens WHERE id = ?", 
+    [$item_householdId], 
+    emptyResultMessage: "Huishouden niet gevonden", emptyResultCode: 400);
 confirm_access_to_household($conn, $userId, $item_householdId);
 
 // optional room must belong to household
@@ -129,7 +133,7 @@ if ($item_roomId !== null) {
     select_query_expect_result($conn, 
         "SELECT id FROM kamers WHERE id = ? AND huishouden_id = ?", 
         [$item_roomId, $item_householdId], 
-        emptyResultMessage: "Room '{$item_roomId}' not found in household", emptyResultCode: 400
+        emptyResultMessage: "Kamer '{$item_roomId}' niet gevonden in huishouden", emptyResultCode: 400
     );
 }
 
@@ -138,7 +142,7 @@ foreach ($item_labels as $labelId) {
     select_query_expect_result($conn, 
         "SELECT id FROM labels WHERE id = ? AND huishouden_id = ?",
         [$labelId, $item_householdId], 
-        emptyResultMessage: "Label '{$labelId}' not found in household", emptyResultCode: 400
+        emptyResultMessage: "Label '{$labelId}' niet gevonden in huishouden", emptyResultCode: 400
     );
 }
 
@@ -149,14 +153,14 @@ if ($item_roomId === null || $item_locX === null || $item_locY === null) {
     $rooms_result = select_query_expect_result($conn,
         "SELECT breedte, hoogte FROM kamers WHERE id = ?",
         [$item_roomId],
-        emptyResultMessage: "Room '{$item_roomId}' not found", emptyResultCode: 400
+        emptyResultMessage: "Kamer '{$item_roomId}' niet gevonden", emptyResultCode: 400
     );
     $width = $rooms_result['rows'][0]['breedte'];
     $height = $rooms_result['rows'][0]['hoogte'];
     if ($item_locX < 0 || $item_locX > $width || $item_locY < 0 || $item_locY > $height) {
         send_response([
             'status' => 'error', 
-            'message' => 'Location out of bounds'
+            'message' => 'Locatie valt niet binnen kamer'
         ], $code = 400);
     }
 }
@@ -166,7 +170,7 @@ foreach ($item_owners as $ownerId) {
     select_query_expect_result($conn, 
         "SELECT id FROM gebruikers WHERE id = ?", 
         [$ownerId], 
-        emptyResultMessage: "Owner '{$ownerId}' not found", emptyResultCode: 400
+        emptyResultMessage: "Eigenaar '{$ownerId}' niet bekend", emptyResultCode: 400
     );
 }
 
@@ -176,16 +180,21 @@ $itemId = generate_uuid_v4();
 insert_query($conn,
     "INSERT INTO voorwerpen(id, naam, omschrijving, huishouden_id, kamer_id, doos_id, loc_x, loc_y, eigendomstype) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
     [$itemId, $item_name, $item_description, $item_householdId, $item_roomId, $item_boxId, $item_locX, $item_locY, $item_ownerType],
-    errMsg: "Item failed to be made"
+    errMsg: "Voorwerp maken gefaald"
 );
 
 // attach labels
 foreach ($item_labels as $labelId) {
-    insert_query($conn, "INSERT INTO gelabelde_voorwerpen_rel(label_id, voorwerp_id) VALUES (?, ?)", [$labelId, $itemId], errMsg: "Failed to attach label");
+    insert_query($conn, 
+        "INSERT INTO gelabelde_voorwerpen_rel(label_id, voorwerp_id) VALUES (?, ?)", 
+        [$labelId, $itemId], 
+        errMsg: "Label aan voorwerp toevoegen gefaald"
+    );
 }
 
 // attach owners
-if ($item_ownerType === 'iedereen' && empty($item_owners)) {
+if ($item_ownerType === 'iedereen' && empty($item_owners)) { 
+    // if ownertype is everyone and no owners are specified, then all members of household will be owner.
     $members = select_query($conn, "SELECT gebruiker_id FROM huishoud_leden_rel WHERE huishouden_id = ?", [$item_householdId]);
     foreach ($members['rows'] as $m) {
         $item_owners[] = $m['gebruiker_id'];
@@ -214,6 +223,7 @@ if ($item_withPhoto) {
 }
 
 send_response($response, 201);
+$conn->close();
 exit;
 
 }

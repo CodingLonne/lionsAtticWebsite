@@ -55,18 +55,21 @@ $household_id = $data["huishouden_id"] ?? null;
 $tag_name = $data["naam"] ?? null;
 
 if (empty($household_id)) {
-    send_response(['status' => 'error', 'message' => 'huishouden_id is required'], 400);
+    send_response(['status' => 'error', 'message' => 'huishouden_id is nodig'], 400);
     exit;
 }
 if (empty($tag_name)) {
-    send_response(['status' => 'error', 'message' => 'naam is required'], 400);
+    send_response(['status' => 'error', 'message' => 'naam is nodig'], 400);
     exit;
 }
 
 confirm_access_to_household($conn, $userId, $household_id);
 
 $tag_id = generate_uuid_v4();
-insert_query($conn, "INSERT INTO labels (id, huishouden_id, naam) VALUES (?, ?, ?)", [$tag_id, $household_id, $tag_name], errMsg: "Tag failed to be made");
+insert_query($conn, 
+    "INSERT INTO labels (id, huishouden_id, naam) VALUES (?, ?, ?)", 
+    [$tag_id, $household_id, $tag_name], 
+    errMsg: "Label opslaan in database gefaald");
 
 send_response([
     'id' => $tag_id

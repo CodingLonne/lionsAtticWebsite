@@ -9,44 +9,50 @@ $method = get_method();
 $data = get_request_data();
 
 if ($method === 'POST') {
-    $username = trim($data['username'] ?? '');
-    $password = $data['password'] ?? '';
-    $hash = password_hash($password, "2y");
+/*
+request
+{
+    gebruikersnaam: string!
+    wachtwoord: string!
+}
+response
+{
 
-    //connect to database
-    $conn = database_connect();
+}
+*/
 
-    //check if username is already taken
-    $existing_users = execute_read_query($conn, 'SELECT id FROM gebruikers WHERE gebruikers_naam = ?', [$username]);
-    if (!$existing_users['successful']) {
-        send_response([
-            'status' => 'failed',
-            'message' => 'Error while executing query',
-        ], 500);
-        exit;
-    }
-    if (!empty($existing_users['rows'])) {
-        http_response_code(409);
-        echo json_encode(['status' => 'error', 'message' => 'Username already taken']);
-        exit;
-    }
+$username = trim($data['gebruikersnaam'] ?? '');
+$password = $data['wachtwoord'] ?? '';
+$hash = password_hash($password, "2y");
 
-    $insertResult = execute_cud_query($conn, 'INSERT INTO gebruikers (gebruikers_naam, wachtwoord_hash) VALUES (?, ?)', [$username, $hash]);
+//connect to database
+$conn = database_connect();
 
-    if ($insertResult['successful'] && $insertResult['affected_rows']>0) {
-        send_response([
-            'status' => 'success',
-            'message' => 'Account created',
-            'extra_info' => $insertResult
-        ], 201);
-    } else {
-        send_response([
-            'status' => 'failed',
-            'message' => 'record failed to be made.',
-            'extra_info' => $insertResult
-        ], 500);
-    }
+//check if username is already taken
+$existing_users = execute_read_query($conn, 'SELECT id FROM gebruikers WHERE gebruikers_naam = ?', [$username]);
+if (!$existing_users['successful']) {
+    send_response([
+        'status' => 'gefaald',
+        'message' => 'Error tijdens query uitvoeren',
+    ], 500);
+    exit;
+}
+if (!empty($existing_users['rows'])) {
+    http_response_code(409);
+    echo json_encode(['status' => 'error', 'message' => 'Gebruikersnaam bezet']);
+    exit;
+}
 
-    $conn->close();
+$insertResult = insert_query($conn, 
+    'INSERT INTO gebruikers (gebruikers_naam, wachtwoord_hash) VALUES (?, ?)', 
+    [$username, $hash],
+    errMsg: 'Account opslaan in database mislukt');
+
+send_response([
+    'status' => 'success',
+    'message' => 'Account succesvol aangemaakt',
+], 201);
+
+$conn->close();
 }
 ?>
